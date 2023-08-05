@@ -40,7 +40,7 @@ describe("luckyMoney", function () {
         to: creator,
         value: totalAmount,
       });
-      const receipt = await tx.wait();
+      let receipt = await tx.wait();
       console.log("signer sendTransaction");
 
       logGas(
@@ -62,7 +62,7 @@ describe("luckyMoney", function () {
 
       const max_participants = 1;
       tx = await creator.create(max_participants);
-      await tx.wait();
+      receipt = await tx.wait();
 
       {
         const signerBalance = await ethers.provider.getBalance(signer.address);
@@ -106,7 +106,7 @@ describe("luckyMoney", function () {
       // );
 
       tx = await luckyMoney.connect(signer1).roll();
-      await tx.wait();
+      receipt = await tx.wait();
 
       {
         const participants = await luckyMoney.participants();
@@ -124,9 +124,11 @@ describe("luckyMoney", function () {
       const signer1Balance2 = await ethers.provider.getBalance(signer1.address);
       console.log(`signer 1 ${signer1.address} balance: ${signer1Balance2}`);
 
-      expect(luckyMoneyBalance + (signer1Balance2 - signer1Balance1)).to.equal(
-        totalAmount
-      );
+      expect(
+        luckyMoneyBalance +
+          (signer1Balance2 - signer1Balance1) +
+          receipt?.fee!
+      ).to.equal(totalAmount);
     });
 
     // it("Should do a lucky draw with a different account", async function () {
