@@ -14,7 +14,7 @@ pragma solidity >=0.7.0 <0.9.0;
  */
 contract LuckyMoneyCreator {
     // storages
-    mapping(address => LuckyMoney[]) luckMoneyContracts;
+    mapping(address => address[]) luckyMoneyContracts;
 
     constructor() {}
 
@@ -23,12 +23,10 @@ contract LuckyMoneyCreator {
      *
      *
      */
-    function create(
-        uint256 max_participants
-    ) public payable returns (bool success) {
+    function create(uint256 max_participants) public returns (bool success) {
         LuckyMoney luckyMoney = new LuckyMoney(max_participants, msg.sender);
-        payable(address(luckyMoney)).transfer(msg.sender.balance);
-        luckMoneyContracts[msg.sender].push(luckyMoney);
+        luckyMoneyContracts[msg.sender].push(address(luckyMoney));
+        payable(address(luckyMoney)).transfer(address(this).balance);
         return true;
     }
 
@@ -36,7 +34,11 @@ contract LuckyMoneyCreator {
      * @dev return all LuckyMoney created by the given user
      *
      */
-    function query(address user) public returns (address[] memory) {}
+    function query(address user) public view returns (address[] memory) {
+        return luckyMoneyContracts[user];
+    }
+
+    receive() external payable {}
 }
 
 /**
@@ -82,9 +84,9 @@ contract LuckyMoney {
             return;
         }
         uint256 random_number = random();
-        payable(msg.sender).transfer(random_number);
+        payable(msg.sender).transfer(limit(random_number));
         participants_roll_status[msg.sender] = true;
-        participants_.push(msg.sender);
+        participants_.push(address(msg.sender));
     }
 
     /**
@@ -93,7 +95,7 @@ contract LuckyMoney {
      */
     function random() private view returns (uint256) {
         return
-            (uint256(
+            uint256(
                 keccak256(
                     abi.encodePacked(
                         block.prevrandao,
@@ -101,8 +103,18 @@ contract LuckyMoney {
                         address(msg.sender)
                     )
                 )
-            ) % address(this).balance) / 2;
+            );
     }
+
+    function limit(uint256 num) private view returns (uint256) {
+        return
+            ((num %
+                (address(this).balance /
+                    (max_participants_ - participants_.length))) * 2) %
+            (address(this).balance);
+    }
+
+    receive() external payable {}
 
     /**
      * @dev only owner can call
@@ -110,8 +122,11 @@ contract LuckyMoney {
      *
      */
     function refund() public onlyOwner {
+        if (address(this).balance == 0) {
+            return;
+        }
         payable(owner).transfer(address(this).balance);
         // "selfdestruct" has been deprecated. The underlying opcode will eventually undergo breaking changes, and its use is not recommended.solidity(5159)
-        selfdestruct(payable(owner));
+        // selfdestruct(payable(owner));
     }
 }
